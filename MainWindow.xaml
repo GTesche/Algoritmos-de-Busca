@@ -1,0 +1,19 @@
+﻿<Window x:Class="SearchAlgorithms.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Search Algorithms" Height="800" Width="800">
+    <Grid>
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="LightGray">
+                <Button Name="btnRunAStar" Content="Run A*" Width="80" Margin="5"/>
+                <Button Name="btnClear" Content="Clear" Width="80" Margin="5"/>
+                <ComboBox Name="heuristicSelector" Width="150" Margin="5">
+                    <ComboBoxItem Content="Manhattan" IsSelected="True"/>
+                    <ComboBoxItem Content="Euclidean"/>
+                </ComboBox>
+            </StackPanel>
+
+            <Canvas Name="canvas" Background="White"/>
+        </DockPanel>
+    </Grid>
+</Window>
