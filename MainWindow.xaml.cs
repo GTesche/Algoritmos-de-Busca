@@ -25,13 +25,80 @@ namespace SearchAlgorithms
             InitializeComponent();
             CreateGrid();
 
-            btnRunAStar.Click += BtnRunAStar_Click;
+            btnRun.Click += BtnRun_Click;
             btnClear.Click += BtnClear_Click;
+            algorithmSelector.SelectionChanged += AlgorithmSelector_SelectionChanged;
             canvas.MouseLeftButtonDown += Canvas_MouseLeftButtonDown;
             canvas.MouseLeftButtonUp += (s, e) => isDrawing = false;
             canvas.MouseMove += Canvas_MouseMove;
         }
 
+        /* Menu */
+
+
+        //heuristics available only for informed search algorithms
+        private void AlgorithmSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            string selected = ((ComboBoxItem)algorithmSelector.SelectedItem).Content.ToString();
+            heuristicSelector.IsEnabled = (selected == "A*");
+        }
+
+
+        private async void BtnRun_Click(object sender, RoutedEventArgs e)
+        {
+            if (start == null || goal == null) return;
+
+            var algorithm = new Algorithm(grid);
+            var (path, expanded, HashSetExpanded) = (new List<Node>(), new List<Node>(), new HashSet<Node>());
+
+            string selectedAlg = ((ComboBoxItem)algorithmSelector.SelectedItem).Content.ToString();
+            
+
+            Algorithm.HeuristicFunc heuristic = null;
+            bool allowDiagonal = false;
+
+            if(selectedAlg == "A*")
+            {
+                string selectedHeuristic = ((ComboBoxItem)heuristicSelector.SelectedItem).Content.ToString();
+                if (selectedHeuristic == "Euclidean")
+                {
+                    heuristic = EuclideanDistance;
+                    allowDiagonal = true;
+                }
+                else
+                {
+                    heuristic = ManhattanHeuristic;
+                }
+            }
+            
+
+            switch (selectedAlg)
+            {
+                case "A*":
+                    (path, expanded) = await algorithm.FindPathAStar(start, goal, heuristic, allowDiagonal, rects);
+                    break;
+                case "Breadth-First-Search":
+                    (path, HashSetExpanded) = await algorithm.FindPathBFS(start, goal, rects);
+                    break;
+                case "Depth-First-Search":
+                    (path, HashSetExpanded) = await algorithm.FindPathDFS(start, goal, rects);
+                    break;
+            }
+
+            // paints final path       
+            foreach (var n in path)
+            {
+                if (n != start && n != goal)
+                    rects[n.posX, n.posY].Fill = Brushes.DarkBlue;
+            }
+        }
+
+        private void BtnClear_Click(object sender, RoutedEventArgs e)
+        {
+            start = null;
+            goal = null;
+            CreateGrid();
+        }
 
         /* Node */
 
@@ -133,39 +200,6 @@ namespace SearchAlgorithms
             rects[n.posX, n.posY].Fill = n.obstacle ? Brushes.Black : Brushes.White;
         }
 
-        private async void BtnRunAStar_Click(object sender, RoutedEventArgs e)
-        {
-            if (start == null || goal == null) return;
-
-            var astar = new AStar(grid);
-
-            
-            AStar.HeuristicFunc heuristic = ManhattanHeuristic;
-            bool allowDiagonal = false;
-
-            string selected = ((ComboBoxItem)heuristicSelector.SelectedItem).Content.ToString();
-            if (selected == "Euclidean")
-            {
-                heuristic = EuclideanDistance;
-                allowDiagonal = true;  
-            }
-
-            var (path, expanded) = await astar.FindPath(start, goal, heuristic, allowDiagonal, rects);
-
-             // paints final path       
-            foreach (var n in path)
-            {
-                if (n != start && n != goal)
-                    rects[n.posX, n.posY].Fill = Brushes.DarkBlue;
-            }
-        }
-
-        private void BtnClear_Click(object sender, RoutedEventArgs e)
-        {
-            start = null;
-            goal = null;
-            CreateGrid();
-        }
 
         /* Heuristics */
         public static double ManhattanHeuristic(Node node1, Node node2)
@@ -182,23 +216,172 @@ namespace SearchAlgorithms
 
         /* Algorithms */
 
-        /* A* */
-        public class AStar
+        
+        public class Algorithm
         {
-            public List<Node> openSet = new List<Node>();
-            public List<Node> closedSet = new List<Node>();
-            public List<Node> expanded = new List<Node>();
             private Node[,] grid;
             public delegate double HeuristicFunc(Node a, Node b);
 
-            public AStar(Node[,] grid)
+            /* AStar */
+            
+
+            
+
+            //passes down the grid
+            public Algorithm(Node[,] grid)
             {
                 this.grid = grid;
             }
 
-            public async Task<(List<Node> path, List<Node> expanded)> FindPath(Node start, Node target, HeuristicFunc heuristic, bool allowDiagonal, Rectangle[,] rects, int delay = 30)
+            /* Depth-First-Search */
+            public async Task<(List<Node> path, HashSet<Node> expanded)> FindPathDFS(Node start, Node target, Rectangle[,] rects, int delay = 30)
             {
-                openSet.Add(start);
+                Stack<Node> DFSStack = new Stack<Node>();
+                HashSet<Node> DFSVisited = new HashSet<Node> ();
+
+                DFSStack.Push(start);
+                DFSVisited.Add(start);
+                start.parent = null;
+     
+                while (DFSStack.Count > 0)
+                {
+                    Node current = DFSStack.Pop();
+
+                    /* paint nodes evaluated*/
+                    foreach (var n in DFSVisited)
+                    {
+                        if (n != start && n != target)
+                            rects[n.posX, n.posY].Fill = Brushes.LightBlue;
+                    }
+
+
+                    // clear previous path visualization
+                    for (int i = 0; i < grid.GetLength(0); i++)
+                    {
+                        for (int j = 0; j < grid.GetLength(1); j++)
+                        {
+                            if (rects[i, j].Fill == Brushes.Yellow)
+                                rects[i, j].Fill = Brushes.White;
+                        }
+                    }
+
+                    // path being evaluated for visualization
+                    List<Node> tempPath = new List<Node>();
+                    Node? temp = current;
+                    while (temp != null)
+                    {
+                        tempPath.Add(temp);
+                        temp = temp.parent;
+                    }
+                    tempPath.Reverse();
+
+                    foreach (var n in tempPath)
+                    {
+                        if (n != start && n != target)
+                            rects[n.posX, n.posY].Fill = Brushes.Yellow;
+                    }
+
+                    await Task.Delay(delay);
+
+                    if (current == target)
+                    {
+                        List<Node> path = new List<Node>();
+                        current = target;
+                        while (current != null)
+                        {
+                            path.Add(current);
+                            current = current.parent;
+                        }
+                        path.Reverse();
+                        return (path, DFSVisited);
+                    }
+
+                    List<Node> neighbors = GetNeighbors(current, grid, false);
+                    foreach(var n in neighbors)
+                    {
+                        if(!n.obstacle && !DFSVisited.Contains(n))
+                        {
+                            n.parent = current;
+                            DFSStack.Push(n);
+                            DFSVisited.Add(n);
+                        }
+                     
+                    }
+                    
+                }
+                return (new List<Node>(), new HashSet<Node>());
+
+            }
+
+            /* Breadth-First-Search */
+            public async Task<(List<Node> path, HashSet<Node> expanded)> FindPathBFS(Node start, Node target, Rectangle[,] rects, int delay = 30)
+            {
+             Queue<Node> BFSQueue = new Queue<Node>();
+             HashSet<Node> BFSVisited = new HashSet<Node>();
+            BFSQueue.Enqueue(start);
+            BFSVisited.Add(start);
+            start.parent = null;
+
+                while (BFSQueue.Count > 0)
+                {
+
+                    
+
+                    Node current = BFSQueue.Dequeue();
+
+                    
+
+                    foreach(var n in BFSVisited)
+                    {
+                        if(n != start && n != target)
+                        {
+                            rects[n.posX, n.posY].Fill = Brushes.LightBlue;
+                        }
+                    }
+                    if (current != start && current != target)
+                    {
+                        rects[current.posX, current.posY].Fill = Brushes.Yellow;
+                    }
+
+                    await Task.Delay(delay);
+
+                    if (current == target)
+                    {
+                        List<Node> path = new List<Node>();
+                        current = target;
+                        while(current != null)
+                        {
+                            path.Add(current);
+                            current = current.parent;
+                        }
+                        path.Reverse();
+                        return (path, BFSVisited);
+                    }
+
+                    List<Node> neighbors = GetNeighbors(current, grid, false);
+                    foreach(var n in neighbors)
+                    {
+                        if (!n.obstacle && !BFSVisited.Contains(n))
+                        {
+                            n.parent = current;
+                            BFSQueue.Enqueue(n);
+                            BFSVisited.Add(n);
+                        }
+                           
+                    }
+                }
+                return (new List<Node>(), new HashSet<Node>()); 
+            }
+
+
+            /* A* */
+            public async Task<(List<Node> path, List<Node> expanded)> FindPathAStar(Node start, Node target, HeuristicFunc heuristic, bool allowDiagonal, Rectangle[,] rects, int delay = 30)
+            {
+
+            List<Node> openSet = new List<Node>();
+            List<Node> closedSet = new List<Node>();
+            List<Node> expanded = new List<Node>();
+            openSet.Add(start);
                 start.parent = null;
                 start.scoreG = 0;
                 start.scoreH = heuristic(start, target);
@@ -245,7 +428,7 @@ namespace SearchAlgorithms
 
                     await Task.Delay(delay);
 
-
+                    //path retriever
                     if (current == target)
                     {
                         List<Node> path = new List<Node>();

@@ -5,10 +5,15 @@
     <Grid>
         <DockPanel>
             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="LightGray">
-                <Button Name="btnRunAStar" Content="Run A*" Width="80" Margin="5"/>
+                <Button Name="btnRun" Content="Run" Width="80" Margin="5"/>
                 <Button Name="btnClear" Content="Clear" Width="80" Margin="5"/>
+                <ComboBox x:Name="algorithmSelector" Width="120" Margin="5">
+                    <ComboBoxItem Content="A*"/>
+                    <ComboBoxItem Content="Breadth-First-Search"/>
+                    <ComboBoxItem Content="Depth-First-Search"/>
+                </ComboBox>
                 <ComboBox Name="heuristicSelector" Width="150" Margin="5">
-                    <ComboBoxItem Content="Manhattan" IsSelected="True"/>
+                    <ComboBoxItem Content="Manhattan"/>
                     <ComboBoxItem Content="Euclidean"/>
                 </ComboBox>
             </StackPanel>
