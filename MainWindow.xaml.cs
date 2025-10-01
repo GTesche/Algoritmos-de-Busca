@@ -54,7 +54,7 @@ namespace SearchAlgorithms
         const int GridSize = 32;
         const int CellSize = 20;
         public Node[,] grid = new Node[GridSize, GridSize];
-        Rectangle[,] rects = new Rectangle[GridSize, GridSize];
+        public Rectangle[,] rects = new Rectangle[GridSize, GridSize];
         bool isDrawing = false;
 
         private void CreateGrid()
@@ -133,7 +133,7 @@ namespace SearchAlgorithms
             rects[n.posX, n.posY].Fill = n.obstacle ? Brushes.Black : Brushes.White;
         }
 
-        private void BtnRunAStar_Click(object sender, RoutedEventArgs e)
+        private async void BtnRunAStar_Click(object sender, RoutedEventArgs e)
         {
             if (start == null || goal == null) return;
 
@@ -150,16 +150,9 @@ namespace SearchAlgorithms
                 allowDiagonal = true;  
             }
 
-            var (path, expanded) = astar.FindPath(start, goal, heuristic, allowDiagonal);
+            var (path, expanded) = await astar.FindPath(start, goal, heuristic, allowDiagonal, rects);
 
-            
-            foreach (var n in expanded)
-            {
-                if (n != start && n != goal && !path.Contains(n))
-                    rects[n.posX, n.posY].Fill = Brushes.LightBlue;
-            }
-
-            
+             // paints final path       
             foreach (var n in path)
             {
                 if (n != start && n != goal)
@@ -203,7 +196,7 @@ namespace SearchAlgorithms
                 this.grid = grid;
             }
 
-            public (List<Node> path, List<Node> expanded) FindPath(Node start, Node target, HeuristicFunc heuristic, bool allowDiagonal)
+            public async Task<(List<Node> path, List<Node> expanded)> FindPath(Node start, Node target, HeuristicFunc heuristic, bool allowDiagonal, Rectangle[,] rects, int delay = 30)
             {
                 openSet.Add(start);
                 start.parent = null;
@@ -213,9 +206,47 @@ namespace SearchAlgorithms
                 while(openSet.Count > 0)
                 {
                     Node current = openSet.OrderBy(n => n.scoreF).First();
+                    
+                    /* paint nodes evaluated*/
+                    foreach (var n in closedSet)
+                    {
+                        if (n != start && n != target)
+                            rects[n.posX, n.posY].Fill = Brushes.LightBlue;
+                    }
+
+
+                    // clear previous path visualization
+                    for (int i = 0; i < grid.GetLength(0); i++)
+                    {
+                        for (int j = 0; j < grid.GetLength(1); j++)
+                        {
+                            if (rects[i, j].Fill == Brushes.Yellow)
+                                rects[i, j].Fill = Brushes.White;
+                        }
+                    }
+
+                    // path being evaluated for visualization
+                    List<Node> tempPath = new List<Node>();
+                    Node? temp = current;
+                    while (temp != null)
+                    {
+                        tempPath.Add(temp);
+                        temp = temp.parent;
+                    }
+                    tempPath.Reverse();
+
+                    foreach (var n in tempPath)
+                    {
+                        if (n != start && n != target)
+                            rects[n.posX, n.posY].Fill = Brushes.Yellow;
+                    }
 
                     
-                    if(current == target)
+
+                    await Task.Delay(delay);
+
+
+                    if (current == target)
                     {
                         List<Node> path = new List<Node>();
                         current = target;
@@ -244,6 +275,8 @@ namespace SearchAlgorithms
                             neighbor.visited = true;
                             neighbor.parent = current;
                             openSet.Add(neighbor);
+                            expanded.Add(neighbor);
+                          
                         }
 
                     }
